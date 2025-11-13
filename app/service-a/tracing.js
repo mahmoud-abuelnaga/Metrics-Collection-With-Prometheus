@@ -1,22 +1,26 @@
-'use strict';
+"use strict";
 
-const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node'); // Updated import
-const { JaegerExporter } = require('@opentelemetry/exporter-jaeger');
-const { registerInstrumentations } = require('@opentelemetry/instrumentation');
-const { Resource } = require('@opentelemetry/resources');
-const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
-const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
-const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
-const { ExpressInstrumentation } = require('@opentelemetry/instrumentation-express');
+const { NodeTracerProvider } = require("@opentelemetry/sdk-trace-node"); // Updated import
+const { JaegerExporter } = require("@opentelemetry/exporter-jaeger");
+const { registerInstrumentations } = require("@opentelemetry/instrumentation");
+const { Resource } = require("@opentelemetry/resources");
+const {
+  SemanticResourceAttributes,
+} = require("@opentelemetry/semantic-conventions");
+const { SimpleSpanProcessor } = require("@opentelemetry/sdk-trace-base");
+const { HttpInstrumentation } = require("@opentelemetry/instrumentation-http");
+const {
+  ExpressInstrumentation,
+} = require("@opentelemetry/instrumentation-express");
 
 // Initialize the provider
 const provider = new NodeTracerProvider({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'service-a',
+    [SemanticResourceAttributes.SERVICE_NAME]: "service-a",
   }),
 });
 
-const JAEGER_ENDPOINT =  process.env.OTEL_EXPORTER_JAEGER_ENDPOINT
+const JAEGER_ENDPOINT = process.env.OTEL_EXPORTER_JAEGER_ENDPOINT;
 
 // Setup the exporter
 const exporter = new JaegerExporter({
@@ -33,11 +37,11 @@ registerInstrumentations({
   instrumentations: [
     new HttpInstrumentation({
       applyCustomAttributesOnSpan: (span, request, response) => {
-        span.setAttribute('custom-attribute', 'custom-value');
+        span.setAttribute("custom-attribute", "custom-value");
       },
     }),
     new ExpressInstrumentation(), // Add this for Express.js instrumentation
   ],
 });
 
-console.log('Tracing initialized');
+console.log("Tracing initialized");

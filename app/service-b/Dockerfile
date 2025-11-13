@@ -1,13 +1,13 @@
-FROM node:18-alpine
-
-COPY package*.json /usr/app/
-
-COPY index.js /usr/app/
-
-COPY tracing.js /usr/app/
+FROM node:alpine3.21
 
 WORKDIR /usr/app
 
+COPY package*.json .
+COPY *.js .
+
 RUN npm install
 
-CMD ["node", "index.js"]
+EXPOSE 3002
+
+ENTRYPOINT [ "node" ]
+CMD ["index.js"]
