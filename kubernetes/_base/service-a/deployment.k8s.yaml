@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-a-deployment
+  labels:
+    app: metrics-exposing-app
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-exposing-app
+      service: service-a
+
+  template:
+    metadata:
+      labels:
+        app: metrics-exposing-app
+        service: service-a
+
+    spec:
+      containers:
+        - name: service-a-container
+          image: abuelnaga0/metrics-exposing-app-service-a:v1.0.0
+          ports:
+            - containerPort: 3001
+              name: http

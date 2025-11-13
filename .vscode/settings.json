@@ -1,0 +1,11 @@
+{
+  "yaml.schemaStore.enable": true,
+  "yaml.validate": true,
+  "yaml.schemas": {
+    "https://json.schemastore.org/kustomization": [
+      "kustomization.yaml",
+      "kustomization.yml"
+    ],
+    "Kubernetes": ["*.k8s.yaml", "*.k8s.yml"]
+  }
+}

@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+resources:
+  - service-a/deployment.k8s.yaml
+  - service-a/service.k8s.yaml
+  - service-b/deployment.k8s.yaml
+  - service-b/service.k8s.yaml
