@@ -1,0 +1,9 @@
+alertmanager:
+  alertmanagerSpec:
+    replicas: 2
+    alertmanagerConfigSelector:
+      matchLabels:
+        release: monitoring
+
+    alertmanagerConfigMatcherStrategy:
+      type: None
