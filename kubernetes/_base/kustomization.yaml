@@ -13,5 +13,7 @@ labels:
 resources:
   - service-a/deployment.k8s.yaml
   - service-a/service.k8s.yaml
+  - service-a/servicemonitor.k8s.yaml
   - service-b/deployment.k8s.yaml
   - service-b/service.k8s.yaml
+  - service-b/servicemonitor.k8s.yaml
