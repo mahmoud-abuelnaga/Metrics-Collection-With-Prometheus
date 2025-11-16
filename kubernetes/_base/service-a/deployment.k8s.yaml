@@ -20,4 +20,9 @@ spec:
           image: abuelnaga0/metrics-exposing-app-service-a:v1.0.0
           ports:
             - containerPort: 3001
+              protocol: TCP
               name: http
+
+            - containerPort: 3001
+              protocol: TCP
+              name: metrics
