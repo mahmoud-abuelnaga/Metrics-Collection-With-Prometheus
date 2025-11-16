@@ -33,3 +33,8 @@ get-granfana-admin-password:
 port-forward-grafana:
 	@echo "Access Grafana at http://localhost:3000"
 	@kubectl --namespace $(namespace) port-forward svc/$(release_name)-grafana 3000:80
+
+
+.PHONY: deploy-base
+deploy-base: create-prometheus-stack-release
+	kubectl apply --kustomize ./_base
