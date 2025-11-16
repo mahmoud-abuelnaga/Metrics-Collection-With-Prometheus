@@ -13,3 +13,8 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+
+    - port: 80
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
