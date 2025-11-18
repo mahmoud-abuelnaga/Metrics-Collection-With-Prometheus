@@ -1,0 +1,18 @@
+extraVolumes:
+  - name: es-certs
+    secret:
+      defaultMode: 444
+      secretName: elasticsearch-es-http-certs-public
+
+extraVolumeMounts:
+  - name: es-certs
+    mountPath: /etc/fluent-bit/secrets/es-certs
+    readOnly: true
+
+env:
+  - name: ES_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-es-elastic-user
+        key: elastic
+

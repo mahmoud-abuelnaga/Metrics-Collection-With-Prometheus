@@ -3,10 +3,12 @@ release_name ?= monitoring
 namespace ?= monitoring
 prometheus_stack_values_file ?= ./_helm/kube-prometheus-stack/values.yaml
 app_namespace ?= default
+logging_namespace ?= logging
 
-# ------------------------------- Targets ---------------------------------- #
+#### ------------------------------- Targets ---------------------------------- ####
+# ------------------------------- Prometheus ---------------------------------- #
 .PHONY: create-prometheus-stack-release
-create-prometheus-stack-release: create-namespace add-prometheus-community-chart
+create-prometheus-stack-release: create-prometheus-stack-namespace add-prometheus-community-chart
 	helm install $(release_name) prometheus-community/kube-prometheus-stack \
 		--namespace $(namespace) \
 		--values $(prometheus_stack_values_file) || true
@@ -15,8 +17,8 @@ create-prometheus-stack-release: create-namespace add-prometheus-community-chart
 delete-prometheus-stack-release:
 	helm uninstall $(release_name) --namespace $(namespace) || true
 
-.PHONY: create-namespace
-create-namespace:
+.PHONY: create-prometheus-stack-namespace
+create-prometheus-stack-namespace:
 	kubectl create namespace $(namespace) || true
 
 .PHONY: add-prometheus-community-chart
@@ -50,7 +52,7 @@ port-forward-service-b:
 	@echo "Access Service B at http://localhost:8081"
 	@kubectl --namespace $(app_namespace) port-forward svc/service-b 8081:80
 
-
+# ------------------------------- Environments ---------------------------------- #
 .PHONY: deploy-base
 deploy-base: create-prometheus-stack-release
 	@echo "Deploying base environment..."
@@ -61,3 +63,34 @@ deploy-base: create-prometheus-stack-release
 destroy-base: delete-prometheus-stack-release
 	@echo "Destroying base environment..."
 	@kubectl delete --kustomize ./_base || true
+
+# ------------------------------- EFK ---------------------------------- #
+.PHONY: deploy-logging-stack
+deploy-logging-stack: create-logging-namespace deploy-eck
+	@echo "Deploying logging stack..."
+	@kubectl apply --namespace $(logging_namespace) --filename ./_logging
+
+.PHONY: delete-logging-stack
+delete-logging-stack: delete-eck delete-logging-namespace
+	@echo "Deleting logging stack..."
+	@kubectl delete --namespace $(logging_namespace) --filename ./_logging || true
+
+.PHONY: deploy-eck # elastic cloud on kubernetes
+deploy-eck:
+	@echo "Deploying ECK environment..."
+	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml
+	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml
+
+.PHONY: delete-eck
+delete-eck:
+	@echo "Deleting ECK environment..."
+	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml || true
+	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml || true
+
+.PHONY: create-logging-namespace
+create-logging-namespace:
+	kubectl create namespace $(logging_namespace) || true
+
+.PHONY: delete-logging-namespace
+delete-logging-namespace:
+	kubectl delete namespace $(logging_namespace) || true
