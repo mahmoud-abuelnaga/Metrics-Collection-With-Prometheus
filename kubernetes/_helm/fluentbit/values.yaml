@@ -23,8 +23,8 @@ config:
         Match           *
         Host            elasticsearch-es-http.logging.svc.cluster.local
         Port            9200
-        HTTP_User      "elastic"
-        HTTP_Passwd    "${ES_PASSWORD}"
+        HTTP_User       elastic
+        HTTP_Passwd     ${ES_PASSWORD}
         TLS             On
         TLS.Verify      Off
         TLS.Ca_File     /etc/fluent-bit/secrets/es-certs/ca.crt
