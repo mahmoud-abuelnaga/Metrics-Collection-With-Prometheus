@@ -4,6 +4,7 @@ namespace ?= monitoring
 prometheus_stack_values_file ?= ./_helm/kube-prometheus-stack/values.yaml
 app_namespace ?= default
 logging_namespace ?= logging
+fluentbit_release_name ?= fluentbit
 
 #### ------------------------------- Targets ---------------------------------- ####
 # ------------------------------- Prometheus ---------------------------------- #
@@ -66,24 +67,24 @@ destroy-base: delete-prometheus-stack-release
 
 # ------------------------------- EFK ---------------------------------- #
 .PHONY: deploy-logging-stack
-deploy-logging-stack: create-logging-namespace deploy-eck
-	@echo "Deploying logging stack..."
-	@kubectl apply --namespace $(logging_namespace) --filename ./_logging
+deploy-logging-stack: create-logging-namespace deploy-eck deploy-fluentbit
+	@echo "Deployed logging stack..."
 
 .PHONY: delete-logging-stack
-delete-logging-stack: delete-eck delete-logging-namespace
-	@echo "Deleting logging stack..."
-	@kubectl delete --namespace $(logging_namespace) --filename ./_logging || true
+delete-logging-stack: delete-fluentbit delete-eck delete-logging-namespace
+	@echo "Deleted logging stack..."
 
 .PHONY: deploy-eck # elastic cloud on kubernetes
 deploy-eck:
 	@echo "Deploying ECK environment..."
 	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml
 	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml
+	@kubectl apply --namespace $(logging_namespace) --filename ./_logging
 
 .PHONY: delete-eck
 delete-eck:
 	@echo "Deleting ECK environment..."
+	@kubectl delete --namespace $(logging_namespace) --filename ./_logging || true
 	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml || true
 	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml || true
 
@@ -94,3 +95,20 @@ create-logging-namespace:
 .PHONY: delete-logging-namespace
 delete-logging-namespace:
 	kubectl delete namespace $(logging_namespace) || true
+
+.PHONY: add-fluentbit-chart
+add-fluentbit-chart:
+	helm repo add fluent https://fluent.github.io/helm-charts
+	helm repo update
+
+.PHONY: deploy-fluentbit
+deploy-fluentbit: add-fluentbit-chart
+	@echo "Deploying Fluent Bit..."
+	@helm install $(fluentbit_release_name) fluent/fluent-bit \
+		--namespace $(logging_namespace) \
+		--values ./_helm/fluentbit/values.yaml || true
+
+.PHONY: delete-fluentbit
+delete-fluentbit:
+	@echo "Deleting Fluent Bit..."
+	@helm uninstall $(fluentbit_release_name) --namespace $(logging_namespace) || true

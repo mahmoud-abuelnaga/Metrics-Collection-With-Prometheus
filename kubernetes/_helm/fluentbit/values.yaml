@@ -16,3 +16,18 @@ env:
         name: elasticsearch-es-elastic-user
         key: elastic
 
+config:
+  outputs: |
+    [OUTPUT]
+        Name            es
+        Match           *
+        Host            elasticsearch-es-http.logging.svc.cluster.local
+        Port            9200
+        HTTP_User      "elastic"
+        HTTP_Passwd    "${ES_PASSWORD}"
+        TLS             On
+        TLS.Verify      Off
+        TLS.Ca_File     /etc/fluent-bit/secrets/es-certs/ca.crt
+        Index           fluentbit
+        Replace_Dots    On
+        Suppress_Type_Name On

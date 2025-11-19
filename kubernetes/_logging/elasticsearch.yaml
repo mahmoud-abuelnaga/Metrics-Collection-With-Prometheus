@@ -13,6 +13,10 @@ spec:
       count: 1
       config:
         node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          securityContext:
+            fsGroup: 1000
 
       volumeClaimTemplates:
         - metadata:
