@@ -54,21 +54,27 @@ port-forward-service-b:
 	@kubectl --namespace $(app_namespace) port-forward svc/service-b 8081:80
 
 # ------------------------------- Environments ---------------------------------- #
-.PHONY: deploy-base
-deploy-base: create-prometheus-stack-release
+.PHONY: deploy-app-base-env
+deploy-app-base-env: create-prometheus-stack-release
 	@echo "Deploying base environment..."
 	@kubectl apply --kustomize ./_base
 
 
-.PHONY: destroy-base
-destroy-base: delete-prometheus-stack-release
+.PHONY: destroy-app-base-env
+destroy-app-base-env: delete-prometheus-stack-release
 	@echo "Destroying base environment..."
 	@kubectl delete --kustomize ./_base || true
 
 # ------------------------------- EFK ---------------------------------- #
 .PHONY: deploy-logging-stack
-deploy-logging-stack: create-logging-namespace deploy-eck deploy-fluentbit
-	@echo "Deployed logging stack..."
+deploy-logging-stack:
+	@echo "Deploying logging stack..."
+	@$(MAKE) create-logging-namespace
+	@$(MAKE) deploy-eck
+	@echo "Sleeping for 1/2 minute"
+	@sleep 30
+	@echo "Deploying Fluent Bit..."
+	@$(MAKE) deploy-fluentbit
 
 .PHONY: delete-logging-stack
 delete-logging-stack: delete-fluentbit delete-eck delete-logging-namespace
@@ -87,6 +93,17 @@ delete-eck:
 	@kubectl delete --namespace $(logging_namespace) --filename ./_logging || true
 	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml || true
 	@kubectl delete -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml || true
+
+.PHONY: port-forward-kibana
+port-forward-kibana:
+	@echo "Access Kibana at https://localhost:5601"
+	@kubectl --namespace $(logging_namespace) port-forward svc/kibana-kb-http 5601:5601
+
+.PHONY: get-kibana-user-creds
+get-kibana-user-creds:
+	@echo "Kibana User: elastic"
+	@echo "Kibana Password:"
+	@kubectl get secret elasticsearch-es-elastic-user -n $(logging_namespace) -o go-template='{{.data.elastic | base64decode}}' ; echo
 
 .PHONY: create-logging-namespace
 create-logging-namespace:
@@ -112,3 +129,14 @@ deploy-fluentbit: add-fluentbit-chart
 delete-fluentbit:
 	@echo "Deleting Fluent Bit..."
 	@helm uninstall $(fluentbit_release_name) --namespace $(logging_namespace) || true
+
+# ------------------------------- Cluster ---------------------------------- #
+.PHONY: deploy-cluster
+create-cluster:
+	@echo "Creating cluster with minikube..."
+	@minikube start
+
+.PHONY: destroy-cluster
+destroy-cluster:
+	@echo "Destorying cluster"
+	@minikube delete
