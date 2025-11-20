@@ -134,7 +134,7 @@ delete-fluentbit:
 .PHONY: deploy-cluster
 create-cluster:
 	@echo "Creating cluster with minikube..."
-	@minikube start
+	@minikube start --nodes 2
 
 .PHONY: destroy-cluster
 destroy-cluster:
