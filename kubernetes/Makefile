@@ -5,7 +5,7 @@ prometheus_stack_values_file ?= ./_helm/kube-prometheus-stack/values.yaml
 app_namespace ?= default
 logging_namespace ?= logging
 fluentbit_release_name ?= fluentbit
-tracing_namespace ?= opentelemetry-operator-system	# must be observability for jaeger operator to be deployed
+tracing_namespace ?= tracing
 
 #### ------------------------------- Targets ---------------------------------- ####
 # ------------------------------- Full Deployment ---------------------------------- #
@@ -155,7 +155,17 @@ delete-fluentbit:
 .PHONY: create-cluster
 create-cluster:
 	@echo "Creating cluster with minikube..."
-	@minikube start --nodes 2
+	@minikube start --nodes 2 --addons=ingress
+
+.PHONY: start-cluster
+start-cluster:
+	@echo "Starting cluster with minikube..."
+	@minikube start
+
+.PHONY: stop-cluster
+stop-cluster:
+	@echo "Stopping cluster with minikube..."
+	@minikube stop
 
 .PHONY: destroy-cluster
 destroy-cluster:
@@ -163,3 +173,57 @@ destroy-cluster:
 	@minikube delete
 
 # ------------------------------- Jaeger ---------------------------------- #
+.PHONY: deploy-cert-manager
+deploy-cert-manager:
+	@echo "Deploying cert-manager..."
+	@kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
+# 	@echo "Sleeping for 120 seconds waiting for cert-manager to be ready..."
+# 	@sleep 120
+
+.PHONY: delete-cert-manager
+delete-cert-manager:
+	@echo "Deleting cert-manager..."
+	@kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml || true
+
+.PHONY: deploy-otel-operator
+deploy-otel-operator: deploy-cert-manager
+	@echo "Deploying OpenTelemetry Operator..."
+	@kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.140.0/opentelemetry-operator.yaml
+
+.PHONY: delete-otel-operator
+delete-otel-operator:
+	@echo "Deleting OpenTelemetry Operator..."
+	@kubectl delete -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.140.0/opentelemetry-operator.yaml || true
+
+.PHONY: create-tracing-namespace
+create-tracing-namespace:
+	@echo "Creating tracing namespace..."
+	@kubectl create namespace $(tracing_namespace) || true
+
+.PHONY: delete-tracing-namespace
+delete-tracing-namespace:
+	@echo "Deleting tracing namespace..."
+	@kubectl delete namespace $(tracing_namespace) || true
+
+.PHONY: create-otel-es-secret
+create-otel-es-secret: create-tracing-namespace delete-otel-es-secret
+	@echo "Deploy OTEL collector elasticsearch secret..."
+	@kubectl create secret generic otel-es-creds \
+		--from-literal=username="elastic" \
+		--from-literal=password=$(shell kubectl --namespace $(logging_namespace) get secret elasticsearch-es-elastic-user -o go-template='{{.data.elastic | base64decode}}') \
+		--namespace $(tracing_namespace)
+
+.PHONY: delete-otel-es-secret
+delete-otel-es-secret:
+	@echo "Delete OTEL collector elasticsearch secret..."
+	@kubectl --namespace $(tracing_namespace) delete secret otel-es-creds || true
+
+.PHONY: deploy-otel-collector
+deploy-otel-collector: deploy-otel-operator deploy-eck create-tracing-namespace create-otel-es-secret
+	@echo "Deploying OpenTelemetry Collector..."
+	@kubectl apply --namespace $(tracing_namespace) -f ./_tracing/otel-collector.yaml
+
+.PHONY: delete-otel-collector
+delete-otel-collector: delete-otel-es-secret
+	@echo "Deleting OpenTelemetry Collector..."
+	@kubectl delete --namespace $(tracing_namespace) -f ./_tracing/otel-collector.yaml || true

@@ -1,0 +1,91 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-collector
+  namespace: tracing
+
+spec:
+  image: jaegertracing/jaeger:2.12.0
+  env:
+    - name: ES_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: otel-es-creds
+          key: username
+
+    - name: ES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: otel-es-creds
+          key: password
+
+  ports:
+    - name: ui
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+
+    - name: jaeger-thrift
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+
+  config:
+    extensions:
+      jaeger_query:
+        storage:
+          traces: es
+
+      jaeger_storage:
+        backends:
+          es:
+            elasticsearch:
+              server_urls:
+                - "https://${env:ES_USERNAME}:${env:ES_PASSWORD}@elasticsearch-es-http.logging.svc.cluster.local:9200"
+
+              tls:
+                insecure_skip_verify: true
+
+              indices:
+                index_prefix: jaeger
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+
+          http:
+            endpoint: 0.0.0.0:4318
+
+      jaeger:
+        protocols:
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+
+    processors:
+      batch:
+        timeout: 5s # Wait up to 5s
+        send_batch_size: 2000 # Or until we have 2000 spans
+
+    exporters:
+      jaeger_storage_exporter:
+        trace_storage: es
+
+    service:
+      extensions: [jaeger_storage, jaeger_query]
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [batch]
+          exporters: [jaeger_storage_exporter]
