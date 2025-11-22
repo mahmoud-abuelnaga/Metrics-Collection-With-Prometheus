@@ -26,3 +26,10 @@ spec:
             - containerPort: 3001
               protocol: TCP
               name: metrics
+
+          env:
+            - name: OTEL_EXPORTER_JAEGER_ENDPOINT
+              value: "http://otel-collector-collector.tracing.svc.cluster.local:14268/api/traces"
+
+            - name: SERVICE_B_URI
+              value: "http://service-b.default.svc.cluster.local"

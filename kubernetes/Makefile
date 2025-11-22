@@ -10,11 +10,11 @@ tracing_namespace ?= tracing
 #### ------------------------------- Targets ---------------------------------- ####
 # ------------------------------- Full Deployment ---------------------------------- #
 .PHONY: deploy-full-stack
-deploy-full-stack: deploy-monitoring-stack deploy-logging-stack deploy-app-base-env
+deploy-full-stack: deploy-monitoring-stack deploy-logging-stack deploy-tracing-stack deploy-app-base-env
 	@echo "Full stack deployed."
 
 .PHONY: delete-full-stack
-delete-full-stack: delete-app-base-env delete-logging-stack delete-monitoring-stack
+delete-full-stack: delete-app-base-env delete-tracing-stack delete-logging-stack delete-monitoring-stack
 	@echo "Full stack destroyed."
 
 # ------------------------------- Prometheus ---------------------------------- #
@@ -85,7 +85,6 @@ deploy-app-base-env: create-prometheus-stack-release
 delete-app-base-env:
 	@echo "Destroying base environment..."
 	@kubectl delete --kustomize ./_base || true
-	@$(MAKE) delete-prometheus-stack-release
 
 # ------------------------------- EFK ---------------------------------- #
 .PHONY: deploy-logging-stack
@@ -177,8 +176,8 @@ destroy-cluster:
 deploy-cert-manager:
 	@echo "Deploying cert-manager..."
 	@kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
-# 	@echo "Sleeping for 120 seconds waiting for cert-manager to be ready..."
-# 	@sleep 120
+	@echo "Sleeping for 120 seconds waiting for cert-manager to be ready..."
+	@sleep 120
 
 .PHONY: delete-cert-manager
 delete-cert-manager:
@@ -223,7 +222,19 @@ deploy-otel-collector: deploy-otel-operator deploy-eck create-tracing-namespace 
 	@echo "Deploying OpenTelemetry Collector..."
 	@kubectl apply --namespace $(tracing_namespace) -f ./_tracing/otel-collector.yaml
 
+.PHONY: port-forward-jaeger-ui
+port-forward-jaeger-ui:
+	@echo "Access Jaeger UI at http://localhost:16686"
+	@kubectl --namespace $(tracing_namespace) port-forward svc/otel-collector-collector 16686:16686
+
 .PHONY: delete-otel-collector
 delete-otel-collector: delete-otel-es-secret
 	@echo "Deleting OpenTelemetry Collector..."
 	@kubectl delete --namespace $(tracing_namespace) -f ./_tracing/otel-collector.yaml || true
+
+.PHONY: deploy-tracing-stack
+deploy-tracing-stack: deploy-otel-collector
+	@echo "Deployed tracing stack..."
+
+.PHONY: delete-tracing-stack
+delete-tracing-stack: delete-otel-collector delete-tracing-namespace delete-otel-operator delete-cert-manager
