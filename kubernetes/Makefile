@@ -5,9 +5,27 @@ prometheus_stack_values_file ?= ./_helm/kube-prometheus-stack/values.yaml
 app_namespace ?= default
 logging_namespace ?= logging
 fluentbit_release_name ?= fluentbit
+tracing_namespace ?= opentelemetry-operator-system	# must be observability for jaeger operator to be deployed
 
 #### ------------------------------- Targets ---------------------------------- ####
+# ------------------------------- Full Deployment ---------------------------------- #
+.PHONY: deploy-full-stack
+deploy-full-stack: deploy-monitoring-stack deploy-logging-stack deploy-app-base-env
+	@echo "Full stack deployed."
+
+.PHONY: delete-full-stack
+delete-full-stack: delete-app-base-env delete-logging-stack delete-monitoring-stack
+	@echo "Full stack destroyed."
+
 # ------------------------------- Prometheus ---------------------------------- #
+.PHONY: deploy-monitoring-stack
+deploy-monitoring-stack: create-prometheus-stack-release
+	@echo "Monitoring stack deployed."
+
+.PHONY: delete-monitoring-stack
+delete-monitoring-stack: delete-prometheus-stack-release delete-prometheus-stack-namespace
+	@echo "Monitoring stack destroyed."
+
 .PHONY: create-prometheus-stack-release
 create-prometheus-stack-release: create-prometheus-stack-namespace add-prometheus-community-chart
 	helm install $(release_name) prometheus-community/kube-prometheus-stack \
@@ -21,6 +39,10 @@ delete-prometheus-stack-release:
 .PHONY: create-prometheus-stack-namespace
 create-prometheus-stack-namespace:
 	kubectl create namespace $(namespace) || true
+
+.PHONY: delete-prometheus-stack-namespace
+delete-prometheus-stack-namespace:
+	kubectl delete namespace $(namespace) || true
 
 .PHONY: add-prometheus-community-chart
 add-prometheus-community-chart:
@@ -59,17 +81,16 @@ deploy-app-base-env: create-prometheus-stack-release
 	@echo "Deploying base environment..."
 	@kubectl apply --kustomize ./_base
 
-
-.PHONY: destroy-app-base-env
-destroy-app-base-env: delete-prometheus-stack-release
+.PHONY: delete-app-base-env
+delete-app-base-env:
 	@echo "Destroying base environment..."
 	@kubectl delete --kustomize ./_base || true
+	@$(MAKE) delete-prometheus-stack-release
 
 # ------------------------------- EFK ---------------------------------- #
 .PHONY: deploy-logging-stack
 deploy-logging-stack:
 	@echo "Deploying logging stack..."
-	@$(MAKE) create-logging-namespace
 	@$(MAKE) deploy-eck
 	@echo "Sleeping for 1/2 minute"
 	@sleep 30
@@ -81,7 +102,7 @@ delete-logging-stack: delete-fluentbit delete-eck delete-logging-namespace
 	@echo "Deleted logging stack..."
 
 .PHONY: deploy-eck # elastic cloud on kubernetes
-deploy-eck:
+deploy-eck: create-logging-namespace
 	@echo "Deploying ECK environment..."
 	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml
 	@kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml
@@ -131,7 +152,7 @@ delete-fluentbit:
 	@helm uninstall $(fluentbit_release_name) --namespace $(logging_namespace) || true
 
 # ------------------------------- Cluster ---------------------------------- #
-.PHONY: deploy-cluster
+.PHONY: create-cluster
 create-cluster:
 	@echo "Creating cluster with minikube..."
 	@minikube start --nodes 2
@@ -140,3 +161,5 @@ create-cluster:
 destroy-cluster:
 	@echo "Destorying cluster"
 	@minikube delete
+
+# ------------------------------- Jaeger ---------------------------------- #
